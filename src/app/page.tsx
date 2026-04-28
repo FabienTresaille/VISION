@@ -156,11 +156,11 @@ export default function DashboardPage() {
 
           {/* Pending tests */}
           {kpis.pendingTests > 0 && (
-            <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <a href="/demandes-test" className="block mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors">
               <p className="text-xs text-amber-400">
                 <span className="font-bold">{kpis.pendingTests}</span> demande(s) de test en attente
               </p>
-            </div>
+            </a>
           )}
         </div>
       </div>

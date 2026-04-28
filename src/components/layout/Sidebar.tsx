@@ -11,6 +11,7 @@ import {
   Rss,
   Settings,
   Eye,
+  FlaskConical,
 } from "lucide-react";
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/veille", label: "Veille Techno", icon: Rss },
   { href: "/detection", label: "Détection", icon: Lightbulb },
   { href: "/offres", label: "Offres", icon: FolderKanban },
+  { href: "/demandes-test", label: "Demandes de test", icon: FlaskConical },
   { href: "/historique", label: "Historique", icon: Archive },
 ];
 
