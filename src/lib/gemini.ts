@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
+  model: "gemini-2.5-flash",
 });
 
 // ─── AUTO-TAGGING ───────────────────────────────────────────
@@ -144,14 +144,12 @@ Si on te demande où en est une offre, indique l'étape actuelle, le pourcentage
 Si on te demande pourquoi une offre bloque, identifie l'étape en cours et les actions non complétées.`;
 
   try {
-    const chat = geminiModel.startChat({
-      history: [
-        { role: "user", parts: [{ text: "Tu es l'assistant Vision." }] },
-        { role: "model", parts: [{ text: "Compris, je suis l'assistant Vision d'Alsek. Comment puis-je vous aider ?" }] },
-      ],
+    const chatModel = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      systemInstruction: systemPrompt,
     });
 
-    const result = await chat.sendMessage(`${systemPrompt}\n\nQuestion de l'utilisateur: ${userMessage}`);
+    const result = await chatModel.generateContent(`Question de l'utilisateur: ${userMessage}`);
     return result.response.text();
   } catch (error: any) {
     console.error("Erreur Gemini (chat):", error);
