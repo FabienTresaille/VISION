@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { STEP_DEFINITIONS, calculateOfferProgress } from "@/lib/workflow";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/offers — List all offers
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

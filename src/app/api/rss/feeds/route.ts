@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fetchAllFeeds } from "@/lib/rss";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/rss/feeds — List RSS feeds
 export async function GET() {
   const feeds = await prisma.rssFeed.findMany({
