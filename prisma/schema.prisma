@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTHENTIFICATION (NextAuth.js v5) ──────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  password      String    // bcrypt hashed
+  role          String    @default("user") // admin, user
+  image         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─── VEILLE TECHNOLOGIQUE ───────────────────────────────────
+
+model Category {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  code        String        @unique
+  responsible String
+  color       String        @default("#2563eb")
+  icon        String        @default("folder")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  subCategories SubCategory[]
+  rssFeeds      RssFeed[]
+  articleTags   RssArticleTag[]
+  offers        Offer[]
+
+  @@map("categories")
+}
+
+model SubCategory {
+  id         String   @id @default(uuid())
+  name       String
+  code       String
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  category    Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  articleTags RssArticleTag[]
+
+  @@unique([categoryId, code])
+  @@map("sub_categories")
+}
+
+model RssFeed {
+  id            String    @id @default(uuid())
+  name          String
+  url           String    @unique
+  categoryId    String    @map("category_id")
+  active        Boolean   @default(true)
+  lastFetchedAt DateTime? @map("last_fetched_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  category Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  articles RssArticle[]
+
+  @@map("rss_feeds")
+}
+
+model RssArticle {
+  id             String    @id @default(uuid())
+  feedId         String    @map("feed_id")
+  title          String
+  summary        String?   @db.Text
+  content        String?   @db.Text
+  url            String    @unique
+  author         String?
+  imageUrl       String?   @map("image_url")
+  publishedAt    DateTime? @map("published_at")
+  relevanceScore Float?    @map("relevance_score")
+  aiAnalysis     String?   @map("ai_analysis") @db.Text
+  offerGenerated Boolean   @default(false) @map("offer_generated")
+  aiOfferDraft   String?   @map("ai_offer_draft") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  feed   RssFeed         @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  tags   RssArticleTag[]
+  offers Offer[]
+
+  @@index([feedId])
+  @@index([publishedAt])
+  @@map("rss_articles")
+}
+
+model RssArticleTag {
+  id            String @id @default(uuid())
+  articleId     String @map("article_id")
+  categoryId    String @map("category_id")
+  subCategoryId String? @map("sub_category_id")
+
+  article     RssArticle   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+
+  @@unique([articleId, categoryId, subCategoryId])
+  @@map("rss_article_tags")
+}
+
+// ─── OFFRES & WORKFLOW ──────────────────────────────────────
+
+model Offer {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?   @db.Text
+  categoryId      String?   @map("category_id")
+  sourceArticleId String?   @map("source_article_id")
+  currentStep     Int       @default(0) @map("current_step")
+  progressPercent Int       @default(0) @map("progress_percent")
+  status          String    @default("in_progress") // in_progress, validated, rejected, archived
+  rejectionReason String?   @map("rejection_reason") @db.Text
+  rejectedAt      DateTime? @map("rejected_at")
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sourceArticle RssArticle?  @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+  steps         OfferStep[]
+  testRequests  TestRequest[]
+
+  @@index([status])
+  @@index([currentStep])
+  @@map("offers")
+}
+
+model OfferStep {
+  id             String    @id @default(uuid())
+  offerId        String    @map("offer_id")
+  stepNumber     Int       @map("step_number")
+  stepName       String    @map("step_name")
+  status         String    @default("pending") // pending, in_progress, completed, blocked
+  notes          String?   @db.Text
+  responsibleRole String  @map("responsible_role")
+  actors         Json?     // Array of { role, name }
+  checklistItems Json?     @map("checklist_items") // Array of { label, checked }
+  slaWeeks       Int?      @map("sla_weeks")
+  progressPercent Int      @default(0) @map("progress_percent")
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  durationHours  Int?      @map("duration_hours")
+
+  offer       Offer              @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  actions     OfferAction[]
+  validations OfferStepValidation[]
+
+  @@unique([offerId, stepNumber])
+  @@map("offer_steps")
+}
+
+model OfferAction {
+  id          String    @id @default(uuid())
+  stepId      String    @map("step_id")
+  label       String
+  responsible String?
+  status      String    @default("pending") // pending, in_progress, completed
+  orderIndex  Int       @map("order_index")
+  completedAt DateTime? @map("completed_at")
+  comment     String?   @db.Text
+
+  step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([stepId])
+  @@map("offer_actions")
+}
+
+model OfferStepValidation {
+  id            String   @id @default(uuid())
+  stepId        String   @map("step_id")
+  validatorRole String   @map("validator_role")
+  approved      Boolean
+  comment       String?  @db.Text
+  validatedAt   DateTime @default(now()) @map("validated_at")
+
+  step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@map("offer_step_validations")
+}
+
+// ─── DEMANDES DE TEST ───────────────────────────────────────
+
+model TestRequest {
+  id            String   @id @default(uuid())
+  offerId       String?  @map("offer_id")
+  requesterName String   @map("requester_name")
+  requesterEmail String  @map("requester_email")
+  solutionName  String   @map("solution_name")
+  description   String   @db.Text
+  status        String   @default("pending") // pending, approved, in_progress, completed, rejected
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  offer Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  @@map("test_requests")
+}
+
+// ─── CHATBOT ────────────────────────────────────────────────
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  role      String   // user, assistant
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}

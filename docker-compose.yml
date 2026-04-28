@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  vision-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vision-app
+    restart: unless-stopped
+    depends_on:
+      vision-db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://vision:${DB_PASSWORD}@vision-db:5432/vision_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=https://vision.alsek.fr
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - RSS_CRON_SCHEDULE=${RSS_CRON_SCHEDULE:-0 */2 * * *}
+    networks:
+      - audit-app_web
+      - vision-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vision.rule=Host(`vision.alsek.fr`)"
+      - "traefik.http.routers.vision.entrypoints=websecure"
+      - "traefik.http.routers.vision.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vision.loadbalancer.server.port=3000"
+      - "traefik.docker.network=audit-app_web"
+
+  vision-db:
+    image: postgres:16-alpine
+    container_name: vision-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=vision_db
+      - POSTGRES_USER=vision
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - vision-data:/var/lib/postgresql/data
+    networks:
+      - vision-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vision -d vision_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  vision-data:
+    driver: local
+
+networks:
+  audit-app_web:
+    external: true
+  vision-internal:
+    driver: bridge

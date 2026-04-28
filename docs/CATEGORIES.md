@@ -1,0 +1,16 @@
+# Catégories de Veille Technologique
+
+L'IA doit taguer les informations selon cette hiérarchie :
+
+1. **BACKUP - FTE**
+   - ISI FULLBACKUP IMMUABLE, ISI BACKUP, ISI BACKUP 365
+2. **MICROSOFT - MALN / FTE**
+   - ISI MCO 365, ISI MAILBOX
+3. **NETWORK & MSP - EDS**
+   - ISI FIREWALL, ISI MCO
+4. **CYBERSECURITY - NIBS / JIAX**
+   - ISI VULNERABILITY, ISI SECURE ID, ISI CRYPTO
+5. **CLOUD - JOPU / EDS**
+   - ISI CLOUD, ISI HOUSING, ISI DRIVE
+6. **AUTRE**
+   - ISI PRIORITY, ISI SAAS, ISI SAFETY
