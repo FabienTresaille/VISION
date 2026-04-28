@@ -14,8 +14,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client and compile seed script
 RUN npx prisma generate
+RUN npx tsc prisma/seed.ts --esModuleInterop || true
 
 # Build Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
