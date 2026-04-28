@@ -47,6 +47,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=deps /prod_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=builder /app/test-gemini.js ./test-gemini.js
 
 # Entrypoint script
 COPY docker-entrypoint.sh ./
