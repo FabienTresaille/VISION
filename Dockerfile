@@ -2,6 +2,7 @@
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
+COPY prisma ./prisma
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev && cp -R node_modules /prod_modules
 RUN npm install
