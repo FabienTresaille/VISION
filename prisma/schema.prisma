@@ -195,6 +195,7 @@ model OfferAction {
   status      String    @default("pending") // pending, in_progress, completed
   orderIndex  Int       @map("order_index")
   completedAt DateTime? @map("completed_at")
+  dueDate     DateTime? @map("due_date")
   comment     String?   @db.Text
 
   step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)

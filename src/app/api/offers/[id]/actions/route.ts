@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const body = await request.json();
-  const { actionId, status, comment } = body;
+  const { actionId, status, comment, dueDate } = body;
 
   if (!actionId || !status) {
     return NextResponse.json(
@@ -23,6 +23,7 @@ export async function POST(
     data: {
       status,
       comment,
+      dueDate: dueDate ? new Date(dueDate) : null,
       completedAt: status === "completed" ? new Date() : null,
     },
     include: {

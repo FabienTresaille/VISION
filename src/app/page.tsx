@@ -11,6 +11,7 @@ import {
   Clock,
   Zap,
   X,
+  Calendar,
 } from "lucide-react";
 
 interface DashboardData {
@@ -25,6 +26,7 @@ interface DashboardData {
   recentOffers: any[];
   recentActivity: any[];
   offersByStep: any[];
+  upcomingActions: any[];
 }
 
 const STEP_NAMES = [
@@ -217,6 +219,53 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Upcoming Actions */}
+      {data?.upcomingActions && data.upcomingActions.length > 0 && (
+        <div className="glass-card-static border-l-4 border-l-brand-500">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-brand-400" />
+            Prochaines actions
+          </h3>
+          <div className="space-y-3">
+            {data.upcomingActions.map((action: any) => {
+              const date = new Date(action.dueDate);
+              const isPast = date < new Date() && date.toDateString() !== new Date().toDateString();
+              const isToday = date.toDateString() === new Date().toDateString();
+              
+              let dateColor = "text-brand-400";
+              let dateLabel = date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+              
+              if (isPast) {
+                dateColor = "text-red-400 font-bold";
+                dateLabel = `Retard (${dateLabel})`;
+              } else if (isToday) {
+                dateColor = "text-amber-400 font-bold";
+                dateLabel = "Aujourd'hui";
+              }
+
+              return (
+                <a
+                  key={action.id}
+                  href={`/offres/${action.step?.offer?.id}`}
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors"
+                >
+                  <div className={`w-24 text-sm ${dateColor}`}>
+                    {dateLabel}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{action.label}</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {action.step?.offer?.name} — {action.responsible}
+                    </p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-600 hidden sm:block" />
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Recent Activity */}
       {data?.recentActivity && data.recentActivity.length > 0 && (

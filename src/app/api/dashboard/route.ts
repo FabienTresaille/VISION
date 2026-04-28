@@ -15,6 +15,7 @@ export async function GET() {
     recentOffers,
     recentActivity,
     offersByStep,
+    upcomingActions,
   ] = await Promise.all([
     prisma.offer.count({ where: { status: "in_progress" } }),
     prisma.offer.count({ where: { status: "validated" } }),
@@ -60,6 +61,19 @@ export async function GET() {
       where: { status: "in_progress" },
       _count: true,
     }),
+    prisma.offerAction.findMany({
+      where: {
+        status: { not: "completed" },
+        dueDate: { not: null },
+      },
+      include: {
+        step: {
+          include: { offer: { select: { id: true, name: true } } },
+        },
+      },
+      orderBy: { dueDate: "asc" },
+      take: 10,
+    }),
   ]);
 
   return NextResponse.json({
@@ -74,5 +88,6 @@ export async function GET() {
     recentOffers,
     recentActivity,
     offersByStep,
+    upcomingActions,
   });
 }

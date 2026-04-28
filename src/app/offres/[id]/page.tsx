@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Circle, Clock, AlertTriangle, Loader2, X, ChevronDown, ChevronUp, Shield } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Clock, AlertTriangle, Loader2, X, ChevronDown, ChevronUp, Shield, Calendar } from "lucide-react";
 
 const STEP_NAMES = ["Détection", "Analyse (Go/NoGo)", "CDC & Maquettage", "Création offre commerciale", "Validation (Gatekeeper)", "Commercialisation", "Suivi"];
 
@@ -37,6 +37,15 @@ export default function OfferDetailPage() {
     });
     await loadOffer();
     setCompletingAction(null);
+  };
+
+  const updateDueDate = async (actionId: string, currentStatus: string, dateStr: string) => {
+    await fetch(`/api/offers/${params.id}/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actionId, status: currentStatus, dueDate: dateStr }),
+    });
+    await loadOffer();
   };
 
   const rejectOffer = async () => {
@@ -139,10 +148,30 @@ export default function OfferDetailPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm ${action.status === "completed" ? "text-gray-400 line-through" : "text-white"}`}>{action.label}</p>
-                        <p className="text-[11px] text-gray-600 mt-0.5">
-                          {action.responsible}
-                          {action.completedAt && ` • ${new Date(action.completedAt).toLocaleDateString("fr-FR")}`}
-                        </p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="text-[11px] text-gray-600">
+                            {action.responsible}
+                            {action.completedAt && ` • Terminé le ${new Date(action.completedAt).toLocaleDateString("fr-FR")}`}
+                          </p>
+                          {action.status !== "completed" && (
+                            <div className="flex items-center gap-1 group/date relative">
+                              <Calendar className="w-3 h-3 text-gray-500 group-hover/date:text-brand-400 transition-colors" />
+                              <input
+                                type="date"
+                                value={action.dueDate ? new Date(action.dueDate).toISOString().split('T')[0] : ''}
+                                onChange={(e) => updateDueDate(action.id, action.status, e.target.value)}
+                                className="bg-transparent text-[11px] text-gray-500 hover:text-brand-400 focus:outline-none cursor-pointer"
+                                title="Définir une date d'échéance"
+                              />
+                            </div>
+                          )}
+                          {action.status === "completed" && action.dueDate && (
+                            <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Échéance: {new Date(action.dueDate).toLocaleDateString("fr-FR")}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       {action.status !== "completed" && isInProgress && (
                         <button onClick={() => completeAction(action.id)} disabled={completingAction === action.id} className="btn-primary !py-1.5 !px-3 !text-xs">
