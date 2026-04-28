@@ -55,9 +55,9 @@ export async function GET() {
       orderBy: { completedAt: "desc" },
       take: 10,
     }),
-    prisma.offerStep.groupBy({
-      by: ["stepNumber"],
-      where: { offer: { status: "in_progress" } },
+    prisma.offer.groupBy({
+      by: ["currentStep"],
+      where: { status: "in_progress" },
       _count: true,
     }),
   ]);

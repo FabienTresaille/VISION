@@ -114,7 +114,7 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-7 gap-2">
             {STEP_NAMES.map((name, i) => {
-              const count = data?.offersByStep?.find((s: any) => s.stepNumber === i)?._count || 0;
+              const count = data?.offersByStep?.find((s: any) => s.currentStep === i)?._count || 0;
               return (
                 <div key={i} className="text-center">
                   <div
