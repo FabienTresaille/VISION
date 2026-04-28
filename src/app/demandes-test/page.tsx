@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FlaskConical, CheckCircle2, XCircle, Clock, Trash2, Mail, LayoutDashboard } from "lucide-react";
+import { FlaskConical, CheckCircle2, XCircle, Clock, Trash2, Mail, LayoutDashboard, HelpCircle, Check, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface TestRequest {
@@ -38,10 +38,28 @@ export default function DemandesTestPage() {
     fetchRequests();
   }, []);
 
+  const updateStatus = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/test-requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Erreur de mise à jour");
+      toast.success("Statut mis à jour");
+      fetchRequests(); // Refresh list
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
         return <span className="badge badge-warning"><Clock className="w-3 h-3 mr-1" /> En attente</span>;
+      case "info_requested":
+        return <span className="badge badge-neutral bg-blue-500/10 text-blue-400 border border-blue-500/20"><HelpCircle className="w-3 h-3 mr-1" /> Attente infos</span>;
       case "approved":
       case "completed":
         return <span className="badge badge-success"><CheckCircle2 className="w-3 h-3 mr-1" /> Validée</span>;
@@ -98,6 +116,7 @@ export default function DemandesTestPage() {
                   <th className="px-6 py-4 font-medium">Description</th>
                   <th className="px-6 py-4 font-medium">Date</th>
                   <th className="px-6 py-4 font-medium">Statut</th>
+                  <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
@@ -131,6 +150,37 @@ export default function DemandesTestPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(req.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {req.status === "pending" || req.status === "info_requested" ? (
+                          <>
+                            <button
+                              onClick={() => updateStatus(req.id, "approved")}
+                              title="Valider"
+                              className="p-1.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => updateStatus(req.id, "info_requested")}
+                              title="Demander des infos"
+                              className="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                            >
+                              <HelpCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => updateStatus(req.id, "rejected")}
+                              title="Rejeter"
+                              className="p-1.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-500 italic">Traitée</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
