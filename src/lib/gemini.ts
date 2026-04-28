@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
+  model: "gemini-1.5-flash",
 });
 
 // ─── AUTO-TAGGING ───────────────────────────────────────────
@@ -153,8 +153,8 @@ Si on te demande pourquoi une offre bloque, identifie l'étape en cours et les a
 
     const result = await chat.sendMessage(`${systemPrompt}\n\nQuestion de l'utilisateur: ${userMessage}`);
     return result.response.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erreur Gemini (chat):", error);
-    return "Désolé, je rencontre une difficulté technique. Veuillez réessayer.";
+    return `Désolé, je rencontre une difficulté technique. (${error.message || "Erreur inconnue"})`;
   }
 }
