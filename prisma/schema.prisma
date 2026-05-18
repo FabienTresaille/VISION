@@ -64,6 +64,7 @@ model Category {
   rssFeeds      RssFeed[]
   articleTags   RssArticleTag[]
   offers        Offer[]
+  offerTags     OfferCategoryTag[]
 
   @@map("categories")
 }
@@ -77,6 +78,7 @@ model SubCategory {
 
   category    Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   articleTags RssArticleTag[]
+  offerTags   OfferCategoryTag[]
 
   @@unique([categoryId, code])
   @@map("sub_categories")
@@ -149,14 +151,19 @@ model Offer {
   status          String    @default("in_progress") // in_progress, validated, rejected, archived
   rejectionReason String?   @map("rejection_reason") @db.Text
   rejectedAt      DateTime? @map("rejected_at")
+  version         Int       @default(1)
+  parentOfferId   String?   @map("parent_offer_id")
   metadata        Json?
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   sourceArticle RssArticle?  @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+  parentOffer   Offer?       @relation("OfferVersions", fields: [parentOfferId], references: [id], onDelete: SetNull)
+  childOffers   Offer[]      @relation("OfferVersions")
   steps         OfferStep[]
   testRequests  TestRequest[]
+  offerTags     OfferCategoryTag[]
 
   @@index([status])
   @@index([currentStep])
@@ -182,6 +189,9 @@ model OfferStep {
   offer       Offer              @relation(fields: [offerId], references: [id], onDelete: Cascade)
   actions     OfferAction[]
   validations OfferStepValidation[]
+  comments    StepComment[]
+  attachments StepAttachment[]
+  members     StepMember[]
 
   @@unique([offerId, stepNumber])
   @@map("offer_steps")
@@ -215,6 +225,68 @@ model OfferStepValidation {
   step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
   @@map("offer_step_validations")
+}
+
+// ─── TAGS CATÉGORIES SUR LES OFFRES ─────────────────────────
+
+model OfferCategoryTag {
+  id            String  @id @default(uuid())
+  offerId       String  @map("offer_id")
+  categoryId    String  @map("category_id")
+  subCategoryId String? @map("sub_category_id")
+
+  offer       Offer        @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subCategory SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+
+  @@unique([offerId, categoryId, subCategoryId])
+  @@map("offer_category_tags")
+}
+
+// ─── COMMENTAIRES PAR ÉTAPE ─────────────────────────────────
+
+model StepComment {
+  id        String   @id @default(uuid())
+  stepId    String   @map("step_id")
+  author    String
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@map("step_comments")
+}
+
+// ─── PIÈCES JOINTES PAR ÉTAPE ───────────────────────────────
+
+model StepAttachment {
+  id           String   @id @default(uuid())
+  stepId       String   @map("step_id")
+  fileName     String   @map("file_name")
+  fileSize     Int      @map("file_size")
+  mimeType     String   @map("mime_type")
+  filePath     String   @map("file_path")
+  uploadedBy   String   @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@map("step_attachments")
+}
+
+// ─── MEMBRES / PARTIES PRENANTES PAR ÉTAPE ──────────────────
+
+model StepMember {
+  id       String @id @default(uuid())
+  stepId   String @map("step_id")
+  name     String
+  role     String  // "responsible" | "stakeholder"
+  email    String?
+
+  step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, name, role])
+  @@map("step_members")
 }
 
 // ─── DEMANDES DE TEST ───────────────────────────────────────

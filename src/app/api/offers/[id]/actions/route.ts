@@ -131,10 +131,16 @@ export async function POST(
     where: { id: offer.id },
     include: {
       category: true,
+      offerTags: {
+        include: { category: true, subCategory: true },
+      },
       steps: {
         include: {
           actions: { orderBy: { orderIndex: "asc" } },
           validations: true,
+          comments: { orderBy: { createdAt: "asc" } },
+          attachments: { orderBy: { createdAt: "desc" } },
+          members: { orderBy: { role: "asc" } },
         },
         orderBy: { stepNumber: "asc" },
       },

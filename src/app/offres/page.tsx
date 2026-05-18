@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FolderKanban, ArrowRight, Filter, Search, AlertTriangle, Clock } from "lucide-react";
+import { FolderKanban, ArrowRight, Search, AlertTriangle, Clock, Tag } from "lucide-react";
 import Link from "next/link";
 
 const STEP_NAMES = ["Détection", "Analyse", "CDC & Maquettage", "Offre commerciale", "Validation", "Commercialisation", "Suivi"];
@@ -16,16 +16,23 @@ export default function OffresPage() {
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/categories").then((r) => r.json()).then(setCategories).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
+    if (tagFilter) params.set("tagCategoryId", tagFilter);
     fetch(`/api/offers?${params}`)
       .then((r) => r.json())
       .then(setOffers)
       .finally(() => setLoading(false));
-  }, [statusFilter]);
+  }, [statusFilter, tagFilter]);
 
   const filtered = offers.filter((o: any) =>
     o.name.toLowerCase().includes(search.toLowerCase())
@@ -38,7 +45,7 @@ export default function OffresPage() {
           <h2 className="text-xl font-semibold text-white">Suivi des Offres</h2>
           <p className="text-sm text-gray-500 mt-1">{offers.length} offre(s) au total</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/[0.08]">
             <Search className="w-4 h-4 text-gray-500" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher..." className="bg-transparent text-sm text-white placeholder-gray-500 outline-none w-40" />
@@ -48,6 +55,12 @@ export default function OffresPage() {
             <option value="in_progress">En cours</option>
             <option value="validated">Validées</option>
             <option value="rejected">Rejetées</option>
+          </select>
+          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/[0.08] text-sm text-gray-300 outline-none">
+            <option value="">Toutes catégories</option>
+            {categories.map((cat: any) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -65,9 +78,6 @@ export default function OffresPage() {
             const st = STATUS_LABELS[offer.status] || STATUS_LABELS.in_progress;
             const currentStep = offer.steps?.find((s: any) => s.status === "in_progress");
             const nextAction = currentStep?.actions?.find((a: any) => a.status !== "completed");
-            const lastCompleted = offer.steps?.flatMap((s: any) => s.actions || []).filter((a: any) => a.status === "completed").sort((a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
-
-            // SLA check
             const slaExceeded = currentStep?.slaWeeks && currentStep?.startedAt && !currentStep?.completedAt &&
               (Date.now() - new Date(currentStep.startedAt).getTime()) > currentStep.slaWeeks * 7 * 24 * 60 * 60 * 1000;
             const slaWarning = currentStep?.slaWeeks && currentStep?.startedAt && !currentStep?.completedAt &&
@@ -85,8 +95,11 @@ export default function OffresPage() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
+                  <div className="flex items-center gap-3 mb-1 flex-wrap">
                     <h3 className="text-sm font-semibold text-white truncate group-hover:text-brand-400 transition-colors">{offer.name}</h3>
+                    {offer.version > 1 && (
+                      <span className="badge bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold">V{offer.version}</span>
+                    )}
                     <span className="badge" style={{ backgroundColor: `${st.color}15`, color: st.color, border: `1px solid ${st.color}30` }}>{st.label}</span>
                     {offer.category && <span className="badge bg-white/5 text-gray-400 border border-white/[0.06]">{offer.category.name}</span>}
                     {slaExceeded && (
@@ -100,10 +113,21 @@ export default function OffresPage() {
                       </span>
                     )}
                   </div>
+                  {/* Tags */}
+                  {offer.offerTags?.length > 0 && (
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Tag className="w-3 h-3 text-gray-600" />
+                      {offer.offerTags.slice(0, 4).map((t: any) => (
+                        <span key={t.id} className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ backgroundColor: `${t.category.color}10`, color: t.category.color }}>
+                          {t.subCategory ? t.subCategory.name : t.category.name}
+                        </span>
+                      ))}
+                      {offer.offerTags.length > 4 && <span className="text-[10px] text-gray-600">+{offer.offerTags.length - 4}</span>}
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <span>Étape {offer.currentStep}/6 — {STEP_NAMES[offer.currentStep]}</span>
                     {nextAction && <span className="text-amber-400">→ {nextAction.label}</span>}
-                    {lastCompleted && <span className="text-green-500/60">✓ {lastCompleted.label}</span>}
                   </div>
                 </div>
 

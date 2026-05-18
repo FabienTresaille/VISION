@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Circle, Clock, AlertTriangle, Loader2, X, ChevronDown, ChevronUp, Shield, Calendar } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Clock, AlertTriangle, Loader2, X, ChevronDown, ChevronUp, Shield, Calendar, Tag, RefreshCw, GitBranch, Plus } from "lucide-react";
+import { StepTabsPanel } from "@/components/offers/StepTabs";
 
 const STEP_NAMES = ["Détection", "Analyse (Go/NoGo)", "CDC & Maquettage", "Création offre commerciale", "Validation (Gatekeeper)", "Commercialisation", "Suivi"];
 
@@ -15,18 +16,24 @@ export default function OfferDetailPage() {
   const [completingAction, setCompletingAction] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [resuming, setResuming] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [showTagSelector, setShowTagSelector] = useState(false);
 
   const loadOffer = async () => {
     const res = await fetch(`/api/offers/${params.id}`);
     if (res.ok) {
       const data = await res.json();
       setOffer(data);
-      setExpandedStep(data.currentStep);
+      if (expandedStep === null) setExpandedStep(data.currentStep);
     }
     setLoading(false);
   };
 
   useEffect(() => { loadOffer(); }, [params.id]);
+  useEffect(() => {
+    fetch("/api/categories").then(r => r.json()).then(setCategories).catch(() => {});
+  }, []);
 
   const completeAction = async (actionId: string) => {
     setCompletingAction(actionId);
@@ -58,6 +65,32 @@ export default function OfferDetailPage() {
     router.push("/historique");
   };
 
+  const resumeOffer = async () => {
+    if (!confirm("Créer une nouvelle version de cette offre ? L'offre actuelle restera dans l'historique.")) return;
+    setResuming(true);
+    const res = await fetch(`/api/offers/${params.id}/resume`, { method: "POST" });
+    if (res.ok) {
+      const newOffer = await res.json();
+      router.push(`/offres/${newOffer.id}`);
+    }
+    setResuming(false);
+  };
+
+  const addTag = async (categoryId: string, subCategoryId?: string) => {
+    await fetch(`/api/offers/${params.id}/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId, subCategoryId }),
+    });
+    setShowTagSelector(false);
+    await loadOffer();
+  };
+
+  const removeTag = async (tagId: string) => {
+    await fetch(`/api/offers/${params.id}/tags?tagId=${tagId}`, { method: "DELETE" });
+    await loadOffer();
+  };
+
   if (loading) return <div className="space-y-4">{[...Array(4)].map((_, i) => <div key={i} className="glass-card h-20 animate-shimmer" />)}</div>;
   if (!offer) return <div className="text-center py-16 text-gray-400">Offre introuvable</div>;
 
@@ -69,9 +102,38 @@ export default function OfferDetailPage() {
           <ArrowLeft className="w-5 h-5 text-gray-400" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-semibold text-white">{offer.name}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">{offer.name}</h2>
+            {offer.version > 1 && (
+              <span className="badge bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold">V{offer.version}</span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-1">{offer.description || "Pas de description"}</p>
-          <div className="flex items-center gap-3 mt-3">
+
+          {/* Version info */}
+          {offer.parentOffer && (
+            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+              <GitBranch className="w-3.5 h-3.5" />
+              <span>Issue de</span>
+              <a href={`/offres/${offer.parentOffer.id}`} className="text-brand-400 hover:text-brand-300 transition-colors">
+                {offer.parentOffer.name}
+              </a>
+            </div>
+          )}
+          {offer.childOffers?.length > 0 && (
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+              <GitBranch className="w-3.5 h-3.5" />
+              <span>Versions suivantes :</span>
+              {offer.childOffers.map((c: any) => (
+                <a key={c.id} href={`/offres/${c.id}`} className="text-brand-400 hover:text-brand-300 transition-colors">
+                  V{c.version} ({c.status === "in_progress" ? "en cours" : c.status === "validated" ? "validée" : "rejetée"})
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* Status + Category badges */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             {offer.category && (
               <span className="badge" style={{ backgroundColor: `${offer.category.color}15`, color: offer.category.color, border: `1px solid ${offer.category.color}30` }}>{offer.category.name}</span>
             )}
@@ -79,13 +141,62 @@ export default function OfferDetailPage() {
               {offer.status === "in_progress" ? "En cours" : offer.status === "validated" ? "Validée" : "Rejetée"}
             </span>
           </div>
+
+          {/* Tags */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <Tag className="w-3.5 h-3.5 text-gray-600" />
+            {offer.offerTags?.map((t: any) => (
+              <span key={t.id} className="inline-flex items-center gap-1 badge text-xs" style={{ backgroundColor: `${t.category.color}10`, color: t.category.color, border: `1px solid ${t.category.color}25` }}>
+                {t.subCategory ? t.subCategory.name : t.category.name}
+                <button onClick={() => removeTag(t.id)} className="hover:text-red-400 transition-colors ml-0.5"><X className="w-2.5 h-2.5" /></button>
+              </span>
+            ))}
+            <div className="relative">
+              <button onClick={() => setShowTagSelector(!showTagSelector)} className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-brand-400 transition-colors px-2 py-1 rounded-lg border border-dashed border-white/[0.08] hover:border-brand-500/30">
+                <Plus className="w-3 h-3" /> Tag
+              </button>
+              {showTagSelector && (
+                <div className="absolute top-full left-0 mt-1 z-30 w-64 max-h-72 overflow-auto rounded-xl bg-surface-2 border border-white/[0.08] shadow-xl p-2">
+                  {categories.map((cat: any) => (
+                    <div key={cat.id}>
+                      <button onClick={() => addTag(cat.id)} className="w-full text-left px-3 py-2 rounded-lg text-xs text-white hover:bg-white/5 font-medium flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} /> {cat.name}
+                      </button>
+                      {cat.subCategories?.map((sub: any) => (
+                        <button key={sub.id} onClick={() => addTag(cat.id, sub.id)} className="w-full text-left px-6 py-1.5 rounded-lg text-[11px] text-gray-400 hover:bg-white/5 hover:text-white">
+                          {sub.name}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                  <button onClick={() => setShowTagSelector(false)} className="w-full text-center text-[10px] text-gray-600 py-1 mt-1">Fermer</button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        {offer.status === "in_progress" && (
-          <button onClick={() => setShowRejectModal(true)} className="btn-danger flex items-center gap-2">
-            <X className="w-4 h-4" /> Rejeter
-          </button>
-        )}
+
+        <div className="flex items-center gap-2">
+          {offer.status === "rejected" && (
+            <button onClick={resumeOffer} disabled={resuming} className="btn-primary flex items-center gap-2">
+              {resuming ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Reprendre
+            </button>
+          )}
+          {offer.status === "in_progress" && (
+            <button onClick={() => setShowRejectModal(true)} className="btn-danger flex items-center gap-2">
+              <X className="w-4 h-4" /> Rejeter
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Rejection info */}
+      {offer.status === "rejected" && offer.rejectionReason && (
+        <div className="p-4 rounded-2xl bg-red-500/[0.05] border border-red-500/15">
+          <p className="text-xs text-red-400 font-medium mb-1">Motif de rejet{offer.rejectedAt && ` — ${new Date(offer.rejectedAt).toLocaleDateString("fr-FR")}`}</p>
+          <p className="text-sm text-gray-300">{offer.rejectionReason}</p>
+        </div>
+      )}
 
       {/* Global progress */}
       <div className="glass-card-static">
@@ -104,14 +215,15 @@ export default function OfferDetailPage() {
           const isExpanded = expandedStep === step.stepNumber;
           const isCompleted = step.status === "completed";
           const isInProgress = step.status === "in_progress";
-          const isPending = step.status === "pending";
           const completedActions = step.actions?.filter((a: any) => a.status === "completed").length || 0;
           const totalActions = step.actions?.length || 0;
+          const commentCount = step.comments?.length || 0;
+          const attachmentCount = step.attachments?.length || 0;
+          const memberCount = step.members?.length || 0;
           const slaExceeded = step.slaWeeks && step.startedAt && !step.completedAt && (Date.now() - new Date(step.startedAt).getTime()) > step.slaWeeks * 7 * 24 * 60 * 60 * 1000;
 
           return (
             <div key={step.id} className={`rounded-2xl border overflow-hidden transition-all ${isCompleted ? "border-green-500/20 bg-green-500/[0.03]" : isInProgress ? "border-brand-500/20 bg-brand-500/[0.03]" : "border-white/[0.06] bg-white/[0.01]"}`}>
-              {/* Step Header */}
               <button onClick={() => setExpandedStep(isExpanded ? null : step.stepNumber)} className="w-full flex items-center gap-4 p-5">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isCompleted ? "bg-green-500/20" : isInProgress ? "bg-brand-500/20" : "bg-white/5"}`}>
                   {isCompleted ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : isInProgress ? <Clock className="w-5 h-5 text-brand-400 animate-pulse" /> : <Circle className="w-5 h-5 text-gray-600" />}
@@ -124,6 +236,9 @@ export default function OfferDetailPage() {
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                     <span>R: {step.responsibleRole}</span>
                     <span>{completedActions}/{totalActions} actions</span>
+                    {commentCount > 0 && <span>💬 {commentCount}</span>}
+                    {attachmentCount > 0 && <span>📎 {attachmentCount}</span>}
+                    {memberCount > 0 && <span>👥 {memberCount}</span>}
                     {step.completedAt && <span className="text-green-400">Terminé le {new Date(step.completedAt).toLocaleDateString("fr-FR")}</span>}
                     {slaExceeded && <span className="text-amber-400">⚠ SLA dépassé ({step.slaWeeks} sem.)</span>}
                   </div>
@@ -136,50 +251,50 @@ export default function OfferDetailPage() {
                 {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
               </button>
 
-              {/* Actions */}
-              {isExpanded && step.actions && (
-                <div className="px-5 pb-5 space-y-2 border-t border-white/[0.04] pt-4">
-                  {step.actions.map((action: any) => (
-                    <div key={action.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${action.status === "completed" ? "bg-green-500/[0.05]" : action.status === "in_progress" ? "bg-brand-500/[0.05]" : "bg-white/[0.02]"}`}>
-                      {action.status === "completed" ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                      ) : (
-                        <Circle className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${action.status === "completed" ? "text-gray-400 line-through" : "text-white"}`}>{action.label}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <p className="text-[11px] text-gray-600">
-                            {action.responsible}
-                            {action.completedAt && ` • Terminé le ${new Date(action.completedAt).toLocaleDateString("fr-FR")}`}
-                          </p>
-                          {action.status !== "completed" && (
-                            <div className="flex items-center gap-1 group/date relative">
-                              <Calendar className="w-3 h-3 text-gray-500 group-hover/date:text-brand-400 transition-colors" />
-                              <input
-                                type="date"
-                                value={action.dueDate ? new Date(action.dueDate).toISOString().split('T')[0] : ''}
-                                onChange={(e) => updateDueDate(action.id, action.status, e.target.value)}
-                                className="bg-transparent text-[11px] text-gray-500 hover:text-brand-400 focus:outline-none cursor-pointer"
-                                title="Définir une date d'échéance"
-                              />
-                            </div>
+              {isExpanded && (
+                <div className="px-5 pb-5">
+                  {/* Actions */}
+                  {step.actions && (
+                    <div className="space-y-2 border-t border-white/[0.04] pt-4">
+                      {step.actions.map((action: any) => (
+                        <div key={action.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${action.status === "completed" ? "bg-green-500/[0.05]" : action.status === "in_progress" ? "bg-brand-500/[0.05]" : "bg-white/[0.02]"}`}>
+                          {action.status === "completed" ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-gray-600 flex-shrink-0" />
                           )}
-                          {action.status === "completed" && action.dueDate && (
-                            <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Échéance: {new Date(action.dueDate).toLocaleDateString("fr-FR")}
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm ${action.status === "completed" ? "text-gray-400 line-through" : "text-white"}`}>{action.label}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <p className="text-[11px] text-gray-600">
+                                {action.responsible}
+                                {action.completedAt && ` • Terminé le ${new Date(action.completedAt).toLocaleDateString("fr-FR")}`}
+                              </p>
+                              {action.status !== "completed" && (
+                                <div className="flex items-center gap-1 group/date relative">
+                                  <Calendar className="w-3 h-3 text-gray-500 group-hover/date:text-brand-400 transition-colors" />
+                                  <input type="date" value={action.dueDate ? new Date(action.dueDate).toISOString().split('T')[0] : ''} onChange={(e) => updateDueDate(action.id, action.status, e.target.value)} className="bg-transparent text-[11px] text-gray-500 hover:text-brand-400 focus:outline-none cursor-pointer" title="Date d'échéance" />
+                                </div>
+                              )}
+                              {action.status === "completed" && action.dueDate && (
+                                <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" /> Échéance: {new Date(action.dueDate).toLocaleDateString("fr-FR")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {action.status !== "completed" && isInProgress && (
+                            <button onClick={() => completeAction(action.id)} disabled={completingAction === action.id} className="btn-primary !py-1.5 !px-3 !text-xs">
+                              {completingAction === action.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Valider"}
+                            </button>
                           )}
                         </div>
-                      </div>
-                      {action.status !== "completed" && isInProgress && (
-                        <button onClick={() => completeAction(action.id)} disabled={completingAction === action.id} className="btn-primary !py-1.5 !px-3 !text-xs">
-                          {completingAction === action.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Valider"}
-                        </button>
-                      )}
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Tabs: Members, Comments, Attachments */}
+                  <StepTabsPanel step={step} offerId={offer.id} onRefresh={loadOffer} />
                 </div>
               )}
             </div>
@@ -197,7 +312,7 @@ export default function OfferDetailPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                <p className="text-xs text-red-400">⚠ Cette action est irréversible. L&apos;offre sera archivée dans l&apos;historique avec le motif de rejet.</p>
+                <p className="text-xs text-red-400">⚠ L&apos;offre sera archivée. Vous pourrez la reprendre plus tard via le bouton &quot;Reprendre&quot;.</p>
               </div>
               <div>
                 <label className="text-xs text-gray-400 font-medium">Motif de rejet (obligatoire)</label>

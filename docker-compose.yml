@@ -16,6 +16,8 @@ services:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
       - RSS_CRON_SCHEDULE=${RSS_CRON_SCHEDULE:-0 */2 * * *}
+    volumes:
+      - vision-uploads:/app/uploads
     networks:
       - audit-app_web
       - vision-internal
@@ -47,6 +49,8 @@ services:
 
 volumes:
   vision-data:
+    driver: local
+  vision-uploads:
     driver: local
 
 networks:

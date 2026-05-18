@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateOfferProgress } from "@/lib/workflow";
 
-// GET /api/offers/[id] — Get offer details
+// GET /api/offers/[id] — Get offer details with all relations
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,10 +12,26 @@ export async function GET(
     include: {
       category: true,
       sourceArticle: true,
+      parentOffer: {
+        select: { id: true, name: true, version: true, status: true },
+      },
+      childOffers: {
+        select: { id: true, name: true, version: true, status: true, createdAt: true },
+        orderBy: { version: "asc" },
+      },
+      offerTags: {
+        include: {
+          category: true,
+          subCategory: true,
+        },
+      },
       steps: {
         include: {
           actions: { orderBy: { orderIndex: "asc" } },
           validations: { orderBy: { validatedAt: "desc" } },
+          comments: { orderBy: { createdAt: "asc" } },
+          attachments: { orderBy: { createdAt: "desc" } },
+          members: { orderBy: { role: "asc" } },
         },
         orderBy: { stepNumber: "asc" },
       },
@@ -62,6 +78,9 @@ export async function PATCH(
     data,
     include: {
       category: true,
+      offerTags: {
+        include: { category: true, subCategory: true },
+      },
       steps: {
         include: { actions: { orderBy: { orderIndex: "asc" } } },
         orderBy: { stepNumber: "asc" },

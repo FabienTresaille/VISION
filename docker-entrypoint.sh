@@ -31,6 +31,11 @@ p.user.count().then(c => {
 });
 "
 
-# ── 3. Drop to nextjs user and start server ───────────────
+# ── 3. Create uploads directory ───────────────────────────
+echo "📁 Setting up uploads directory..."
+mkdir -p /app/uploads/attachments
+chown -R nextjs:nodejs /app/uploads
+
+# ── 4. Drop to nextjs user and start server ───────────────
 echo "✅ Ready! Starting Next.js server..."
 exec su -s /bin/sh nextjs -c "exec $*"

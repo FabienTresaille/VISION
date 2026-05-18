@@ -10,17 +10,32 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const categoryId = searchParams.get("categoryId");
   const step = searchParams.get("step");
+  const tagCategoryId = searchParams.get("tagCategoryId");
 
   const where: any = {};
   if (status) where.status = status;
   if (categoryId) where.categoryId = categoryId;
   if (step) where.currentStep = parseInt(step);
+  if (tagCategoryId) {
+    where.offerTags = {
+      some: { categoryId: tagCategoryId },
+    };
+  }
 
   const offers = await prisma.offer.findMany({
     where,
     include: {
       category: true,
       sourceArticle: true,
+      parentOffer: {
+        select: { id: true, name: true, version: true },
+      },
+      offerTags: {
+        include: {
+          category: true,
+          subCategory: true,
+        },
+      },
       steps: {
         include: { actions: { orderBy: { orderIndex: "asc" } } },
         orderBy: { stepNumber: "asc" },
@@ -35,7 +50,7 @@ export async function GET(request: NextRequest) {
 // POST /api/offers — Create a new offer with all 7 steps and pre-defined actions
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, description, categoryId, sourceArticleId } = body;
+  const { name, description, categoryId, sourceArticleId, tagCategoryIds } = body;
 
   if (!name) {
     return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
@@ -78,6 +93,17 @@ export async function POST(request: NextRequest) {
       },
     },
   });
+
+  // Add category tags if provided
+  if (tagCategoryIds && Array.isArray(tagCategoryIds) && tagCategoryIds.length > 0) {
+    await prisma.offerCategoryTag.createMany({
+      data: tagCategoryIds.map((tc: { categoryId: string; subCategoryId?: string }) => ({
+        offerId: offer.id,
+        categoryId: tc.categoryId,
+        subCategoryId: tc.subCategoryId || null,
+      })),
+    });
+  }
 
   // Mark source article as offer generated
   if (sourceArticleId) {
