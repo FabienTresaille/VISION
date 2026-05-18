@@ -208,10 +208,62 @@ model OfferAction {
   dueDate     DateTime? @map("due_date")
   comment     String?   @db.Text
 
-  step OfferStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  step        OfferStep          @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  comments    ActionComment[]
+  attachments ActionAttachment[]
+  members     ActionMember[]
 
   @@index([stepId])
   @@map("offer_actions")
+}
+
+// ─── COMMENTAIRES PAR ACTION ────────────────────────────────
+
+model ActionComment {
+  id        String   @id @default(uuid())
+  actionId  String   @map("action_id")
+  author    String
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  action OfferAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@index([actionId])
+  @@map("action_comments")
+}
+
+// ─── PIÈCES JOINTES PAR ACTION ──────────────────────────────
+
+model ActionAttachment {
+  id         String   @id @default(uuid())
+  actionId   String   @map("action_id")
+  fileName   String   @map("file_name")
+  fileSize   Int      @map("file_size")
+  mimeType   String   @map("mime_type")
+  filePath   String   @map("file_path")
+  uploadedBy String   @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  action OfferAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@index([actionId])
+  @@map("action_attachments")
+}
+
+// ─── MEMBRES PAR ACTION (1 responsable + N membres) ─────────
+
+model ActionMember {
+  id       String  @id @default(uuid())
+  actionId String  @map("action_id")
+  name     String
+  role     String  // "responsible" (max 1) | "member" (illimité)
+  email    String?
+
+  action OfferAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([actionId, name, role])
+  @@index([actionId])
+  @@map("action_members")
 }
 
 model OfferStepValidation {

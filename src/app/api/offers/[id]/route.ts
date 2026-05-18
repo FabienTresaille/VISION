@@ -27,7 +27,14 @@ export async function GET(
       },
       steps: {
         include: {
-          actions: { orderBy: { orderIndex: "asc" } },
+          actions: {
+            orderBy: { orderIndex: "asc" },
+            include: {
+              comments: { orderBy: { createdAt: "asc" } },
+              attachments: { orderBy: { createdAt: "desc" } },
+              members: true,
+            },
+          },
           validations: { orderBy: { validatedAt: "desc" } },
           comments: { orderBy: { createdAt: "asc" } },
           attachments: { orderBy: { createdAt: "desc" } },

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Circle, Clock, AlertTriangle, Loader2, X, ChevronDown, ChevronUp, Shield, Calendar, Tag, RefreshCw, GitBranch, Plus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Clock, AlertTriangle, Loader2, X, ChevronDown, ChevronUp, Shield, Calendar, Tag, RefreshCw, GitBranch, Plus, MessageSquare, Paperclip, Users } from "lucide-react";
 import { StepTabsPanel } from "@/components/offers/StepTabs";
+import { ActionTabsPanel } from "@/components/offers/ActionTabs";
 
 const STEP_NAMES = ["Détection", "Analyse (Go/NoGo)", "CDC & Maquettage", "Création offre commerciale", "Validation (Gatekeeper)", "Commercialisation", "Suivi"];
 
@@ -14,6 +15,7 @@ export default function OfferDetailPage() {
   const [loading, setLoading] = useState(true);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [completingAction, setCompletingAction] = useState<string | null>(null);
+  const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [resuming, setResuming] = useState(false);
@@ -256,40 +258,88 @@ export default function OfferDetailPage() {
                   {/* Actions */}
                   {step.actions && (
                     <div className="space-y-2 border-t border-white/[0.04] pt-4">
-                      {step.actions.map((action: any) => (
-                        <div key={action.id} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${action.status === "completed" ? "bg-green-500/[0.05]" : action.status === "in_progress" ? "bg-brand-500/[0.05]" : "bg-white/[0.02]"}`}>
-                          {action.status === "completed" ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm ${action.status === "completed" ? "text-gray-400 line-through" : "text-white"}`}>{action.label}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <p className="text-[11px] text-gray-600">
-                                {action.responsible}
-                                {action.completedAt && ` • Terminé le ${new Date(action.completedAt).toLocaleDateString("fr-FR")}`}
-                              </p>
-                              {action.status !== "completed" && (
-                                <div className="flex items-center gap-1 group/date relative">
-                                  <Calendar className="w-3 h-3 text-gray-500 group-hover/date:text-brand-400 transition-colors" />
-                                  <input type="date" value={action.dueDate ? new Date(action.dueDate).toISOString().split('T')[0] : ''} onChange={(e) => updateDueDate(action.id, action.status, e.target.value)} className="bg-transparent text-[11px] text-gray-500 hover:text-brand-400 focus:outline-none cursor-pointer" title="Date d'échéance" />
+                      {step.actions.map((action: any) => {
+                        const actionCommentCount = action.comments?.length || 0;
+                        const actionAttachmentCount = action.attachments?.length || 0;
+                        const actionMemberCount = action.members?.length || 0;
+                        const actionResponsible = action.members?.find((m: any) => m.role === "responsible");
+                        const isActionExpanded = expandedAction === action.id;
+                        const hasDeliverables = actionCommentCount > 0 || actionAttachmentCount > 0 || actionMemberCount > 0;
+
+                        return (
+                          <div key={action.id}>
+                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer hover:ring-1 hover:ring-white/[0.08] ${action.status === "completed" ? "bg-green-500/[0.05]" : action.status === "in_progress" ? "bg-brand-500/[0.05]" : "bg-white/[0.02]"} ${isActionExpanded ? "ring-1 ring-brand-500/20" : ""}`}
+                              onClick={() => setExpandedAction(isActionExpanded ? null : action.id)}
+                            >
+                              {action.status === "completed" ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                              ) : (
+                                <Circle className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className={`text-sm ${action.status === "completed" ? "text-gray-400 line-through" : "text-white"}`}>{action.label}</p>
+                                  {/* Deliverable indicators */}
+                                  {hasDeliverables && (
+                                    <div className="flex items-center gap-1.5">
+                                      {actionCommentCount > 0 && (
+                                        <span className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                                          <MessageSquare className="w-2.5 h-2.5" />{actionCommentCount}
+                                        </span>
+                                      )}
+                                      {actionAttachmentCount > 0 && (
+                                        <span className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                                          <Paperclip className="w-2.5 h-2.5" />{actionAttachmentCount}
+                                        </span>
+                                      )}
+                                      {actionMemberCount > 0 && (
+                                        <span className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                                          <Users className="w-2.5 h-2.5" />{actionMemberCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <p className="text-[11px] text-gray-600">
+                                    {actionResponsible ? (
+                                      <span className="inline-flex items-center gap-1">
+                                        <Shield className="w-2.5 h-2.5 text-brand-400" />
+                                        <span className="text-brand-400/80">{actionResponsible.name}</span>
+                                      </span>
+                                    ) : (
+                                      action.responsible
+                                    )}
+                                    {action.completedAt && ` • Terminé le ${new Date(action.completedAt).toLocaleDateString("fr-FR")}`}
+                                  </p>
+                                  {action.status !== "completed" && (
+                                    <div className="flex items-center gap-1 group/date relative" onClick={(e) => e.stopPropagation()}>
+                                      <Calendar className="w-3 h-3 text-gray-500 group-hover/date:text-brand-400 transition-colors" />
+                                      <input type="date" value={action.dueDate ? new Date(action.dueDate).toISOString().split('T')[0] : ''} onChange={(e) => updateDueDate(action.id, action.status, e.target.value)} className="bg-transparent text-[11px] text-gray-500 hover:text-brand-400 focus:outline-none cursor-pointer" title="Date d'échéance" />
+                                    </div>
+                                  )}
+                                  {action.status === "completed" && action.dueDate && (
+                                    <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" /> Échéance: {new Date(action.dueDate).toLocaleDateString("fr-FR")}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {action.status !== "completed" && isInProgress && (
+                                <button onClick={(e) => { e.stopPropagation(); completeAction(action.id); }} disabled={completingAction === action.id} className="btn-primary !py-1.5 !px-3 !text-xs">
+                                  {completingAction === action.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Valider"}
+                                </button>
                               )}
-                              {action.status === "completed" && action.dueDate && (
-                                <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" /> Échéance: {new Date(action.dueDate).toLocaleDateString("fr-FR")}
-                                </p>
-                              )}
+                              <ChevronDown className={`w-3 h-3 text-gray-600 transition-transform flex-shrink-0 ${isActionExpanded ? "rotate-180" : ""}`} />
                             </div>
+
+                            {/* Action deliverables panel */}
+                            {isActionExpanded && (
+                              <ActionTabsPanel action={action} offerId={offer.id} onRefresh={loadOffer} />
+                            )}
                           </div>
-                          {action.status !== "completed" && isInProgress && (
-                            <button onClick={() => completeAction(action.id)} disabled={completingAction === action.id} className="btn-primary !py-1.5 !px-3 !text-xs">
-                              {completingAction === action.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Valider"}
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
