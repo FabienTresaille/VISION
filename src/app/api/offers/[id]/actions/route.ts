@@ -136,7 +136,14 @@ export async function POST(
       },
       steps: {
         include: {
-          actions: { orderBy: { orderIndex: "asc" } },
+          actions: {
+            orderBy: { orderIndex: "asc" },
+            include: {
+              comments: { orderBy: { createdAt: "asc" } },
+              attachments: { orderBy: { createdAt: "desc" } },
+              members: true,
+            },
+          },
           validations: true,
           comments: { orderBy: { createdAt: "asc" } },
           attachments: { orderBy: { createdAt: "desc" } },

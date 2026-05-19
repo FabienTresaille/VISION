@@ -33,7 +33,7 @@ p.user.count().then(c => {
 
 # ── 3. Create uploads directory ───────────────────────────
 echo "📁 Setting up uploads directory..."
-mkdir -p /app/uploads/attachments
+mkdir -p /app/uploads/attachments /app/uploads/action-attachments
 chown -R nextjs:nodejs /app/uploads
 
 # ── 4. Drop to nextjs user and start server ───────────────
